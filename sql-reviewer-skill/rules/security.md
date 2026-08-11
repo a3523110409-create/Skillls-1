@@ -1,90 +1,90 @@
-# Security Rules (`rules/security.md`)
+# Reglas de Seguridad (`rules/security.md`)
 
-This module defines deterministic and intent-focused security rules for reviewing SQL queries. Security findings take top priority in code reviews.
-
----
-
-## SEC-R02: Unbounded or Cosmetic Filtering on `UPDATE` / `DELETE`
-
-### Rule Definition
-`IF` statement is `UPDATE` or `DELETE` `AND` (`WHERE` clause is missing `OR` `WHERE` clause evaluates to unconditional true such as `1=1`, `0=0`, `'a'='a'`, `TRUE`, or wildcard pattern `FCEMAIL LIKE '%'`), `THEN` flag as **CRITICAL** severity violation.
-
-> **Justification:** Executing `DELETE` or `UPDATE` statements without a selective `WHERE` clause results in immediate full-table modification or data loss. Cosmetic filters like `WHERE 1=1` or `WHERE FCEMAIL LIKE '%'` are deliberate pattern evasion techniques that bypass naive regex checks while causing identical catastrophic loss.
-
-### Code Examples
-
-#### Incorrect (FAIL)
-```sql
--- Missing WHERE clause
-DELETE FROM TA_USERS;
-
--- Cosmetic filter (Always True)
-DELETE FROM TA_USERS WHERE 1 = 1;
-
--- Wildcard filter selecting 100% of rows
-UPDATE TA_USERS SET FCROLE = 'ADMIN' WHERE FCEMAIL LIKE '%';
-```
-
-#### Correct (PASS)
-```sql
--- Specific primary key filtering
-DELETE FROM TA_USERS WHERE FNUSER_ID = 4821;
-
--- Parametric bounded update
-UPDATE TA_USERS SET FCROLE = 'ADMIN' WHERE FNUSER_ID = :userId AND FCSTATUS = 'ACTIVE';
-```
+Este módulo define reglas deterministas y enfocadas en la intención para la revisión de consultas SQL. Los hallazgos de seguridad tienen la máxima prioridad en la revisión de código.
 
 ---
 
-## SEC-R04: Dynamic SQL String Concatenation (SQL Injection Risk)
+## SEC-R02: Filtrado Incondicional o Cosmético en `UPDATE` / `DELETE`
 
-### Rule Definition
-`IF` statement constructs SQL queries via string concatenation (`+`, `||`, `CONCAT()`) using un-sanitized external variables or input strings, `THEN` flag as **CRITICAL** severity violation.
+### Definición de la Regla
+`IF` la sentencia es `UPDATE` o `DELETE` `AND` (`WHERE` está ausente `OR` la cláusula `WHERE` se evalúa como verdaderamente incondicional como `1=1`, `0=0`, `'a'='a'`, `TRUE` o patrón comodín `FCCORREO LIKE '%'`), `THEN` marcar como violación de severidad **CRITICAL**.
 
-> **Justification:** String concatenation allows attackers to inject malicious SQL fragments, bypassing authentication, dumping database contents, or executing administrative commands. All variable inputs must use prepared statements with bind parameters.
+> **Justificación:** Ejecutar sentencias `DELETE` u `UPDATE` sin una cláusula `WHERE` selectiva resulta en la modificación o eliminación inmediata de toda la tabla. Los filtros cosméticos como `WHERE 1=1` o `WHERE FCCORREO LIKE '%'` son técnicas deliberadas de evasión de patrones que superan verificaciones simples por regex causando una pérdida catastrófica idéntica.
 
-### Code Examples
+### Ejemplos de Código
 
-#### Incorrect (FAIL)
+#### Incorrecto (FAIL)
 ```sql
--- String concatenation with input variable
-SELECT * FROM TA_USERS WHERE FCEMAIL = '' + user_input + '';
+-- Cláusula WHERE ausente
+DELETE FROM TA_USUARIOS;
 
--- CONCAT function with dynamic variable
-SELECT FCNAME, FCEMAIL FROM TA_USERS WHERE FCROLE = CONCAT('USER_', input_role);
+-- Filtro cosmético (Siempre Verdadero)
+DELETE FROM TA_USUARIOS WHERE 1 = 1;
+
+-- Filtro comodín que selecciona el 100% de las filas
+UPDATE TA_USUARIOS SET FCROL = 'ADMINISTRA' WHERE FCCORREO LIKE '%';
 ```
 
-#### Correct (PASS)
+#### Correcto (PASS)
 ```sql
--- Parameterized prepared statement
-SELECT FCUSER_ID, FCNAME, FCEMAIL FROM TA_USERS WHERE FCEMAIL = :email;
+-- Filtrado por clave primaria específica
+DELETE FROM TA_USUARIOS WHERE FNUSUARIO_ID = 4821;
 
--- Positional bound parameter
-SELECT FCNAME, FCEMAIL FROM TA_USERS WHERE FCROLE = $1;
+-- Actualización acotada parametrizada
+UPDATE TA_USUARIOS SET FCROL = 'ADMINISTRA' WHERE FNUSUARIO_ID = :usuarioId AND FCESTADO = 'ACTIVO';
 ```
 
 ---
 
-## SEC-R11: [REGLA PROPIA] Unsafe Destructive Schema Changes and Soft-Delete Bypass
+## SEC-R04: Concatenación Dinámica de Cadenas SQL (Riesgo de Inyección SQL)
 
-### Rule Definition
-`IF` statement executes `DROP TABLE`, `DROP DATABASE`, `TRUNCATE TABLE`, `ALTER TABLE ... DROP COLUMN` `OR` hard `DELETE` on tables configured for soft-deletion (`is_deleted` or `fd_deleted_at` present), `THEN` flag as **CRITICAL** (for DDL) or **HIGH** (for hard DELETE).
+### Definición de la Regla
+`IF` la sentencia construye consultas SQL mediante concatenación de cadenas (`+`, `||`, `CONCAT()`) usando variables o cadenas de entrada externa no sanitizadas, `THEN` marcar como violación de severidad **CRITICAL**.
 
-> **Justification:** Destructive DDL bypasses transactional rollbacks in many engines and permanently removes structure/data. Hard `DELETE` on soft-delete entity tables corrupts audit trails and historic reporting analytics.
+> **Justificación:** La concatenación de cadenas permite a los atacantes inyectar fragmentos SQL maliciosos, evadiendo la autenticación, extrayendo el contenido de la base de datos o ejecutando comandos administrativos. Todas las entradas variables deben usar sentencias preparadas con parámetros vinculados (bind parameters).
 
-### Code Examples
+### Ejemplos de Código
 
-#### Incorrect (FAIL)
+#### Incorrecto (FAIL)
 ```sql
--- Direct table truncate
-TRUNCATE TABLE TA_TRANSACTIONS;
+-- Concatenación de cadenas con variable de entrada
+SELECT * FROM TA_USUARIOS WHERE FCCORREO = '' + entrada_usuario + '';
 
--- Hard delete on soft-delete audited table
-DELETE FROM TA_USERS WHERE FNUSER_ID = 102;
+-- Función CONCAT con variable dinámica
+SELECT FCNOMBRE, FCCORREO FROM TA_USUARIOS WHERE FCROL = CONCAT('ROL_', rol_entrada);
 ```
 
-#### Correct (PASS)
+#### Correcto (PASS)
 ```sql
--- Soft delete update pattern
-UPDATE TA_USERS SET FDIS_DELETED = 1, FDDELETED_AT = CURRENT_TIMESTAMP WHERE FNUSER_ID = 102;
+-- Sentencia preparada parametrizada
+SELECT FNUSUARIO_ID, FCNOMBRE, FCCORREO FROM TA_USUARIOS WHERE FCCORREO = :correo;
+
+-- Parámetro vinculado posicional
+SELECT FCNOMBRE, FCCORREO FROM TA_USUARIOS WHERE FCROL = $1;
+```
+
+---
+
+## SEC-R11: [REGLA PROPIA] Cambios Destructivos de Esquema No Seguros y Evasión de Borrado Lógico
+
+### Definición de la Regla
+`IF` la sentencia ejecuta `DROP TABLE`, `DROP DATABASE`, `TRUNCATE TABLE`, `ALTER TABLE ... DROP COLUMN` `OR` `DELETE` físico en tablas configuradas para borrado lógico (`fdes_eliminado` o `fdeliminado_at` presente), `THEN` marcar como severidad **CRITICAL** (para DDL) o **HIGH** (para DELETE físico).
+
+> **Justificación:** El DDL destructivo omite el rollback transaccional en muchos motores y elimina permanentemente la estructura/datos. El `DELETE` físico en tablas auditadas con borrado lógico corrompe los rastros de auditoría y los reportes analíticos históricos.
+
+### Ejemplos de Código
+
+#### Incorrecto (FAIL)
+```sql
+-- Truncado directo de tabla
+TRUNCATE TABLE TA_TRANSACCIONES;
+
+-- Borrado físico en tabla auditada con borrado lógico
+DELETE FROM TA_USUARIOS WHERE FNUSUARIO_ID = 102;
+```
+
+#### Correcto (PASS)
+```sql
+-- Patrón de actualización para borrado lógico
+UPDATE TA_USUARIOS SET FDES_ELIMINADO = 1, FDELIMINADO_AT = CURRENT_TIMESTAMP WHERE FNUSUARIO_ID = 102;
 ```

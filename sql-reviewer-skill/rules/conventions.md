@@ -1,84 +1,84 @@
-# Conventions Rules (`rules/conventions.md`)
+# Reglas de Convenciones (`rules/conventions.md`)
 
-This module defines maintainability, standards compliance, and logical correctness rules for database schema and query design.
-
----
-
-## CONV-R05: Naming Conventions and Reserved Words
-
-### Rule Definition
-`IF` schema objects (tables, columns, indexes) fail to follow system identifier prefixes (`TA_` for Tables, `FC` for Varchars/Strings, `FN` for Numerics, `FD` for Dates/Timestamps) `OR` utilize SQL reserved keywords (e.g., `USER`, `ORDER`, `GROUP`, `KEY`), special characters, camelCase, or spaces, `THEN` flag as **LOW** severity violation.
-
-> **Justification:** Standardized naming prefixes immediately convey variable data types to backend engineers, prevent syntax errors caused by unquoted reserved keyword collisions, and ensure cross-platform consistency.
-
-### Code Examples
-
-#### Incorrect (FAIL)
-```sql
--- Unquoted reserved word 'USER' and camelCase column name
-CREATE TABLE users (
-    userId INT,
-    user = VARCHAR(100)
-);
-```
-
-#### Correct (PASS)
-```sql
-CREATE TABLE TA_USERS (
-    FNUSER_ID INT PRIMARY KEY,
-    FCUSER_NAME VARCHAR(100) NOT NULL
-);
-```
+Este módulo define reglas de mantenibilidad, cumplimiento de estándares y corrección lógica para el diseño de esquemas y consultas en la base de datos.
 
 ---
 
-## CONV-R07: Three-Valued Logic NULL Comparison Syntax
+## CONV-R05: Convenciones de Nombres y Palabras Reservadas
 
-### Rule Definition
-`IF` filtering predicate compares `NULL` using equality or inequality operators (`= NULL`, `<> NULL`, `!= NULL`), `THEN` flag as **MEDIUM** severity violation.
+### Definición de la Regla
+`IF` los objetos del esquema (tablas, columnas, índices) no siguen los prefijos de identificadores del sistema (`TA_` para Tablas, `FC` para Cadenas/VARCHAR, `FN` para Numéricos, `FD` para Fechas/Timestamps) `OR` utilizan palabras reservadas de SQL (ej. `USER`, `ORDER`, `GROUP`, `KEY`), caracteres especiales, camelCase o espacios, `THEN` marcar como violación de severidad **LOW**.
 
-> **Justification:** Under ANSI SQL Three-Valued Logic (3VL), `NULL = NULL` and `val = NULL` evaluate to `UNKNOWN` rather than `TRUE` or `FALSE`. Using `= NULL` or `!= NULL` in `WHERE` clauses silently results in zero matching rows being returned.
+> **Justificación:** Los prefijos estandarizados comunican inmediatamente el tipo de dato a los desarrolladores, previenen errores de sintaxis causados por palabras reservadas y aseguran consistencia entre motores de bases de datos.
 
-### Code Examples
+### Ejemplos de Código
 
-#### Incorrect (FAIL)
+#### Incorrecto (FAIL)
 ```sql
--- Incorrect equality comparison with NULL
-SELECT FNUSER_ID, FCEMAIL FROM TA_USERS WHERE FCDELETED_AT = NULL;
-
-SELECT FNUSER_ID FROM TA_USERS WHERE FCSTATUS != NULL;
+-- Palabra reservada 'USER' no escapada y nombre de columna en camelCase
+CREATE TABLE usuarios (
+    usuarioId INT,
+    user VARCHAR(100)
+);
 ```
 
-#### Correct (PASS)
+#### Correcto (PASS)
 ```sql
-SELECT FNUSER_ID, FCEMAIL FROM TA_USERS WHERE FCDELETED_AT IS NULL;
-
-SELECT FNUSER_ID FROM TA_USERS WHERE FCSTATUS IS NOT NULL;
+CREATE TABLE TA_USUARIOS (
+    FNUSUARIO_ID INT PRIMARY KEY,
+    FCNOMBRE_USUARIO VARCHAR(100) NOT NULL
+);
 ```
 
 ---
 
-## CONV-R08: Data Type Selection and Entity Representation
+## CONV-R07: Sintaxis de Comparación con NULL bajo Lógica Trivalente
 
-### Rule Definition
-`IF` primary or foreign key columns use `VARCHAR` without UUID rationale `OR` numeric values are stored as string types `OR` timestamp values are stored as unformatted text, `THEN` flag as **MEDIUM** severity violation.
+### Definición de la Regla
+`IF` el predicado de filtrado compara `NULL` utilizando operadores de igualdad o desigualdad (`= NULL`, `<> NULL`, `!= NULL`), `THEN` marcar como violación de severidad **MEDIUM**.
 
-> **Justification:** Misaligned data types increase disk storage footprints, degrade CPU cache effectiveness during join operations, and prevent native database date/time index math optimization.
+> **Justificación:** Bajo la Lógica Trivalente (3VL) de ANSI SQL, `NULL = NULL` y `valor = NULL` se evalúan como `UNKNOWN` en lugar de `TRUE` o `FALSE`. Utilizar `= NULL` o `!= NULL` en cláusulas `WHERE` resulta silenciosamente en cero filas devueltas.
 
-### Code Examples
+### Ejemplos de Código
 
-#### Incorrect (FAIL)
+#### Incorrecto (FAIL)
 ```sql
-CREATE TABLE TA_PAYMENTS (
-    FCPAYMENT_ID VARCHAR(50) PRIMARY KEY, -- Integer sequence stored as VARCHAR
-    FCRECEIPT_DATE VARCHAR(30)           -- Timestamp stored as string
+-- Comparación de igualdad errónea con NULL
+SELECT FNUSUARIO_ID, FCCORREO FROM TA_USUARIOS WHERE FDELIMINADO_AT = NULL;
+
+SELECT FNUSUARIO_ID FROM TA_USUARIOS WHERE FCESTADO != NULL;
+```
+
+#### Correcto (PASS)
+```sql
+SELECT FNUSUARIO_ID, FCCORREO FROM TA_USUARIOS WHERE FDELIMINADO_AT IS NULL;
+
+SELECT FNUSUARIO_ID FROM TA_USUARIOS WHERE FCESTADO IS NOT NULL;
+```
+
+---
+
+## CONV-R08: Elección de Tipos de Datos y Representación de Entidades
+
+### Definición de la Regla
+`IF` las columnas de clave primaria o foránea utilizan `VARCHAR` sin justificación de UUID `OR` valores numéricos almacenados como texto `OR` marcas de tiempo almacenadas como texto sin formato, `THEN` marcar como violación de severidad **MEDIUM**.
+
+> **Justificación:** Los tipos de datos desalineados aumentan el consumo de disco, degradan la efectividad de la memoria en operaciones de join y previenen optimizaciones nativas de fechas y cálculos numéricos.
+
+### Ejemplos de Código
+
+#### Incorrecto (FAIL)
+```sql
+CREATE TABLE TA_PAGOS (
+    FCPAGO_ID VARCHAR(50) PRIMARY KEY, -- Secuencia de enteros almacenada como VARCHAR
+    FCRECIBO_FECHA VARCHAR(30)          -- Marca de tiempo almacenada como texto
 );
 ```
 
-#### Correct (PASS)
+#### Correcto (PASS)
 ```sql
-CREATE TABLE TA_PAYMENTS (
-    FNPAYMENT_ID INT AUTO_INCREMENT PRIMARY KEY,
-    FDPAYMENT_DATE TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+CREATE TABLE TA_PAGOS (
+    FNPAGO_ID INT AUTO_INCREMENT PRIMARY KEY,
+    FDPAGO_FECHA TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 ```
