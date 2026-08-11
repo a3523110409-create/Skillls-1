@@ -1,44 +1,44 @@
-# Test 02: Evident Errors Evaluation
+# Pruebas Test 02: Evaluación de Errores Evidentes
 
-## Input
+## Input (Entrada)
 ```sql
-SELECT * FROM TA_USERS WHERE FDDELETED_AT = NULL;
-DELETE FROM TA_ORDERS;
+SELECT * FROM TA_USUARIOS WHERE FDELIMINADO_AT = NULL;
+DELETE FROM TA_ORDENES;
 ```
 
-## Expected behavior
-The skill detects multiple blatant violations:
-1. `R01`: Projection wildcard `SELECT *` (`HIGH`).
-2. `R07`: Invalid comparison `= NULL` (`MEDIUM`).
-3. `R02` & `R06`: Unbounded `DELETE FROM TA_ORDERS` without `WHERE` (`CRITICAL`).
-Overall status reported as `ACTION REQUIRED` with highest severity `CRITICAL`.
+## Expected behavior (Comportamiento Esperado)
+La skill detecta múltiples violaciones evidentes:
+1. `R01`: Proyección incondicional comodín `SELECT *` (`HIGH`).
+2. `R07`: Comparación inválida `= NULL` (`MEDIUM`).
+3. `R02` & `R06`: `DELETE FROM TA_ORDENES` incondicional sin cláusula `WHERE` (`CRITICAL`).
+Resultado general reportado como `ACTION REQUIRED` con severidad máxima `CRITICAL`.
 
-## Actual behavior
+## Actual behavior (Comportamiento Real)
 ```markdown
-# SQL Code Review Report
+# Reporte de Revisión de Código SQL
 
-## Summary
-- **Overall Result**: ACTION REQUIRED
-- **Highest Severity**: CRITICAL
-- **Total Findings**: 3
+## Resumen
+- **Resultado General**: ACTION REQUIRED
+- **Severidad Máxima**: CRITICAL
+- **Total de Hallazgos**: 3
 
-## Findings Detail
+## Detalle de Hallazgos
 
-| Line | Rule Violated | Severity | Technical Explanation | Recommended Remediation |
+| Línea | Regla Violada | Severidad | Explicación Técnica | Remediación Recomendada |
 | :--- | :--- | :--- | :--- | :--- |
-| Line 1 | R01: Selective Projection | HIGH | Query uses `SELECT *`, fetching unnecessary columns and increasing network/memory load. | Explicitly specify required columns: `SELECT FNUSER_ID, FCEMAIL...`. |
-| Line 1 | R07: NULL Comparison | MEDIUM | Predicate compares `FDDELETED_AT = NULL`. In ANSI SQL 3VL, `= NULL` evaluates to UNKNOWN, returning 0 rows. | Change operator to `IS NULL`: `WHERE FDDELETED_AT IS NULL`. |
-| Line 2 | R02: Safe DELETE Filter | CRITICAL | Statement `DELETE FROM TA_ORDERS` lacks a `WHERE` clause, which will cause complete data erasure of TA_ORDERS. | Add selective `WHERE` clause: `WHERE FNORDER_ID = :orderId`. |
+| Línea 1 | R01: Proyección Selectiva | HIGH | La consulta utiliza `SELECT *`, obteniendo columnas innecesarias y aumentando la carga de red/memoria. | Especificar explícitamente las columnas requeridas: `SELECT FNUSUARIO_ID, FCCORREO...`. |
+| Línea 1 | R07: Comparación con NULL | MEDIUM | El predicado compara `FDELIMINADO_AT = NULL`. En ANSI SQL 3VL, `= NULL` se evalúa como UNKNOWN, devolviendo 0 filas. | Cambiar operador a `IS NULL`: `WHERE FDELIMINADO_AT IS NULL`. |
+| Línea 2 | R02: Filtro DELETE Seguro | CRITICAL | La sentencia `DELETE FROM TA_ORDENES` no contiene una cláusula `WHERE`, lo que provocará el borrado completo de la tabla TA_ORDENES. | Agregar cláusula `WHERE` selectiva: `WHERE FNORDEN_ID = :ordenId`. |
 
-## Context Requests / UNKNOWN Declarations
-- None.
+## Solicitudes de Contexto / Declaraciones UNKNOWN
+- Ninguna.
 ```
 
 ## Pass / Fail
 PASS
 
-## Problem detected
-Initial test run did not group severity levels properly when evaluating multi-statement inputs in sequence.
+## Problem detected (Problema Detectado)
+La ejecución inicial de la prueba no agrupaba correctamente los niveles de severidad al evaluar lotes de múltiples sentencias consecutivas.
 
-## Modification made to the skill
-Updated Section 6.13 in `SKILL.md` to specify: *"When a single query or batch violates multiple rules, the overall report status takes the maximum severity of any individual finding triggered across the entire batch."*
+## Modification made to the skill (Modificación Realizada a la Skill)
+Se actualizó la Sección 6.13 en `SKILL.md` para especificar: *"Cuando una sola consulta o lote viola múltiples reglas, el estado general del reporte toma la severidad máxima de cualquier hallazgo detectado en todo el lote."*

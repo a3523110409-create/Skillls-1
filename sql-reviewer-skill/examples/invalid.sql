@@ -1,40 +1,40 @@
 -- =============================================================================
--- EXAMPLES: INVALID SQL STATEMENTS
--- Each query below deliberately violates one or more rules from R01-R12.
+-- EJEMPLOS: SENTENCIAS SQL INVÁLIDAS
+-- Cada consulta a continuación viola deliberadamente una o más reglas de R01 a R12.
 -- =============================================================================
 
--- Statement 1: Violates R01 (SELECT *) and R06 (Missing LIMIT)
-SELECT * FROM TA_USERS;
+-- Sentencia 1: Viola R01 (SELECT *) y R06 (LIMIT ausente)
+SELECT * FROM TA_USUARIOS;
 
--- Statement 2: Violates R02 (DELETE without WHERE clause) [CRITICAL]
-DELETE FROM TA_USERS;
+-- Sentencia 2: Viola R02 (DELETE sin cláusula WHERE) [CRITICAL]
+DELETE FROM TA_USUARIOS;
 
--- Statement 3: Violates R03 (Destructive DDL TRUNCATE) [CRITICAL]
-TRUNCATE TABLE TA_TRANSACTIONS;
+-- Sentencia 3: Viola R03 (DDL destructivo TRUNCATE) [CRITICAL]
+TRUNCATE TABLE TA_TRANSACCIONES;
 
--- Statement 4: Violates R04 (SQL Injection via string concatenation) [CRITICAL]
-SELECT FCEMAIL, FCROLE FROM TA_USERS WHERE FCNAME = '' + input_name + '';
+-- Sentencia 4: Viola R04 (Inyección SQL por concatenación de cadenas) [CRITICAL]
+SELECT FCCORREO, FCROL FROM TA_USUARIOS WHERE FCNOMBRE = '' + entrada_nombre + '';
 
--- Statement 5: Violates R05 (Naming conventions: camelCase, reserved word 'user', no TA_ prefix)
-CREATE TABLE users (
-    userId INT,
+-- Sentencia 5: Viola R05 (Convenciones de nombres: camelCase, palabra reservada 'user', sin prefijo TA_)
+CREATE TABLE usuarios (
+    usuarioId INT,
     user VARCHAR(50)
 );
 
--- Statement 6: Violates R07 (Incorrect NULL comparison using =)
-SELECT FNUSER_ID, FCEMAIL FROM TA_USERS WHERE FDDELETED_AT = NULL;
+-- Sentencia 6: Viola R07 (Comparación errónea con NULL usando =)
+SELECT FNUSUARIO_ID, FCCORREO FROM TA_USUARIOS WHERE FDELIMINADO_AT = NULL;
 
--- Statement 7: Violates R08 (Poor data type choice: int stored as VARCHAR, date stored as VARCHAR)
-CREATE TABLE TA_LOGS (
-    FCLOG_ID VARCHAR(50) PRIMARY KEY,
-    FCLOG_DATE VARCHAR(50)
+-- Sentencia 7: Viola R08 (Mala elección de tipos de datos: entero guardado como VARCHAR, fecha como VARCHAR)
+CREATE TABLE TA_BITACORA (
+    FCBITACORA_ID VARCHAR(50) PRIMARY KEY,
+    FCBITACORA_FECHA VARCHAR(50)
 );
 
--- Statement 8: Violates R10 (Non-SARGable scalar function wrapping indexed date column)
-SELECT FNORDER_ID, FNTOTAL_AMOUNT FROM TA_ORDERS WHERE YEAR(FDORDER_DATE) = 2026;
+-- Sentencia 8: Viola R10 (Función escalar No SARGable envolviendo columna de fecha indexada)
+SELECT FNORDEN_ID, FNMONTO_TOTAL FROM TA_ORDENES WHERE YEAR(FDFECHA_ORDEN) = 2026;
 
--- Statement 9: Violates R11 [REGLA PROPIA] (Hard DELETE on table containing soft-delete column)
-DELETE FROM TA_USERS WHERE FNUSER_ID = 505;
+-- Sentencia 9: Viola R11 [REGLA PROPIA] (DELETE físico en tabla con columna de borrado lógico)
+DELETE FROM TA_USUARIOS WHERE FNUSUARIO_ID = 505;
 
--- Statement 10: Violates R12 [REGLA PROPIA] (Implicit type coercion: VARCHAR column compared to Integer)
-SELECT FNACCOUNT_ID FROM TA_ACCOUNTS WHERE FCACCOUNT_NUMBER = 998877;
+-- Sentencia 10: Viola R12 [REGLA PROPIA] (Coerción implícita: columna VARCHAR comparada con entero)
+SELECT FNCUENTA_ID FROM TA_CUENTAS WHERE FCCUENTA_NUMERO = 998877;

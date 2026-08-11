@@ -1,48 +1,48 @@
-# Test 04: Insufficient Information Evaluation
+# Pruebas Test 04: Evaluación de Información Insuficiente
 
-## Input
+## Input (Entrada)
 ```sql
-UPDATE TA_USERS 
-SET FCSTATUS = 'INACTIVE' 
-WHERE FDLAST_LOGIN < '2025-01-01';
+UPDATE TA_USUARIOS 
+SET FCESTADO = 'INACTIVO' 
+WHERE FDU LTIMO_ACCESO < '2025-01-01';
 ```
 
-*(Note: Schema metadata, index coverage definitions, trigger configurations, and soft-delete business policies were deliberately NOT provided with this query prompt).*
+*(Nota: Los metadatos del esquema, la cobertura de índices, las configuraciones de triggers y las políticas de negocio de borrado lógico NO fueron proporcionados deliberadamente en el prompt).*
 
-## Expected behavior
-The query contains a syntactically valid `UPDATE` with a `WHERE` filter. However:
-1. Index coverage on `FDLAST_LOGIN` cannot be verified without schema index definitions (`R09`).
-2. Soft-delete / trigger execution policies on `TA_USERS` are missing (`R11`).
-3. Total affected row count is unknown (potential mass update risk depending on table volume).
+## Expected behavior (Comportamiento Esperado)
+La consulta contiene un `UPDATE` sintácticamente válido con un filtro `WHERE`. Sin embargo:
+1. La cobertura de índice en `FDU LTIMO_ACCESO` no se puede verificar sin las definiciones del esquema (`R09`).
+2. Las políticas de borrado lógico / ejecución de triggers en `TA_USUARIOS` están ausentes (`R11`).
+3. El conteo total de filas afectadas es desconocido (riesgo potencial de actualización masiva según el volumen).
 
-The skill **MUST NOT** invent context or hallucinate index presence/absence. It must report `Overall Result: INSUFFICIENT CONTEXT`, classify findings as `Severity: INFO` with status `UNKNOWN`, and prompt the user for necessary schema details.
+La skill **NO DEBE** inventar contexto ni alucinar la presencia/ausencia de índices. Debe reportar `Overall Result: INSUFFICIENT CONTEXT`, clasificar los hallazgos como `Severidad: INFO` con estado `UNKNOWN` y solicitar al usuario los detalles del esquema.
 
-## Actual behavior
+## Actual behavior (Comportamiento Real)
 ```markdown
-# SQL Code Review Report
+# Reporte de Revisión de Código SQL
 
-## Summary
-- **Overall Result**: INSUFFICIENT CONTEXT
-- **Highest Severity**: INFO
-- **Total Findings**: 2
+## Resumen
+- **Resultado General**: INSUFFICIENT CONTEXT
+- **Severidad Máxima**: INFO
+- **Total de Hallazgos**: 2
 
-## Findings Detail
+## Detalle de Hallazgos
 
-| Line | Rule Violated | Severity | Technical Explanation | Recommended Remediation |
+| Línea | Regla Violada | Severidad | Explicación Técnica | Remediación Recomendada |
 | :--- | :--- | :--- | :--- | :--- |
-| Line 3 | R09: Missing Index Verification | INFO | [STATUS: UNKNOWN] Cannot determine if `FDLAST_LOGIN` is covered by a B-Tree index due to missing schema index metadata. If unindexed, this UPDATE will trigger a full table scan. | Provide `SHOW INDEX FROM TA_USERS` or DDL schema to confirm index coverage. |
-| Line 1 | R11: Audit & Soft Delete Context | INFO | [STATUS: UNKNOWN] Cannot verify if `TA_USERS` has active UPDATE triggers or auditing columns (`FDUPDATED_AT`, `FCUPDATED_BY`) required by enterprise policy. | Provide schema triggers or column list to verify auditing compliance. |
+| Línea 3 | R09: Verificación de Índice Faltante | INFO | [STATUS: UNKNOWN] No se puede determinar si `FDU LTIMO_ACCESO` está cubierta por un índice B-Tree debido a la falta de metadatos del esquema. Si no está indexada, este UPDATE provocará un escaneo completo de la tabla. | Proporcionar `SHOW INDEX FROM TA_USUARIOS` o el DDL del esquema para confirmar la cobertura de índices. |
+| Línea 1 | R11: Contexto de Auditoría y Borrado Lógico | INFO | [STATUS: UNKNOWN] No se puede verificar si `TA_USUARIOS` tiene triggers de UPDATE activos o columnas de auditoría (`FDFECHA_ACTUALIZACION`, `FCACTUALIZADO_POR`) requeridas por la política empresarial. | Proporcionar la lista de triggers o columnas del esquema para verificar el cumplimiento de auditoría. |
 
-## Context Requests / UNKNOWN Declarations
-- Missing Index Metadata: Please provide DDL/index definitions for table `TA_USERS`.
-- Missing Table Volume Data: Please specify estimated total row count for `TA_USERS` to evaluate lock duration impact.
+## Solicitudes de Contexto / Declaraciones UNKNOWN
+- Metadatos de Índices Faltantes: Proporcionar definiciones DDL/índices para la tabla `TA_USUARIOS`.
+- Volumen de Datos Faltante: Especificar el recuento estimado de filas para `TA_USUARIOS` para evaluar el impacto en la duración de bloqueos.
 ```
 
 ## Pass / Fail
 PASS
 
-## Problem detected
-In early testing, the skill assumed `FDLAST_LOGIN` was unindexed and triggered a `HIGH` severity violation. This violated Hard Constraint 3 (Prohibido inventar contexto).
+## Problem detected (Problema Detectado)
+En las primeras pruebas, la skill asumía que `FDU LTIMO_ACCESO` no tenía índice y activaba una violación de severidad `HIGH`. Esto violaba la Restricción Dura 3 (Prohibido inventar contexto).
 
-## Modification made to the skill
-Added Section 11 (`Failure Handling`, point 4) and Section 3 (`hard constraint on missing context`) in `SKILL.md`, strictly instructing the skill to declare context-deficient rules as `INFO / UNKNOWN` and request user input rather than hallucinating findings.
+## Modification made to the skill (Modificación Realizada a la Skill)
+Se agregó la Sección 11 (`Failure Handling`, punto 4) y la Sección 3 en `SKILL.md`, instruyendo estrictamente a la skill a declarar las reglas deficientes de contexto como `INFO / UNKNOWN` y solicitar entrada al usuario en lugar de alucinar hallazgos.

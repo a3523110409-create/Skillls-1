@@ -1,40 +1,40 @@
-# Test 03: Edge Case Evaluation
+# Pruebas Test 03: Evaluación de Casos de Borde (Edge Cases)
 
-## Input
+## Input (Entrada)
 ```sql
-SELECT FNUSER_ID, FCNAME 
-FROM TA_USERS 
-WHERE LOWER(FCEMAIL) = 'admin@company.com' 
+SELECT FNUSUARIO_ID, FCNOMBRE 
+FROM TA_USUARIOS 
+WHERE LOWER(FCCORREO) = 'admin@empresa.com' 
 LIMIT 10;
 ```
 
-## Expected behavior
-The query superficially looks valid (explicit projection, selective filter, `LIMIT 10`). However, wrapping `FCEMAIL` inside `LOWER()` makes the filter Non-SARGable. The skill must detect `R10` (`HIGH` severity).
+## Expected behavior (Comportamiento Esperado)
+La consulta parece válida superficialmente (proyección explícita, filtro selectivo, `LIMIT 10`). Sin embargo, envolver `FCCORREO` dentro de `LOWER()` hace que el filtro sea No SARGable. La skill debe detectar `R10` (severidad `HIGH`).
 
-## Actual behavior
+## Actual behavior (Comportamiento Real)
 ```markdown
-# SQL Code Review Report
+# Reporte de Revisión de Código SQL
 
-## Summary
-- **Overall Result**: ACTION REQUIRED
-- **Highest Severity**: HIGH
-- **Total Findings**: 1
+## Resumen
+- **Resultado General**: ACTION REQUIRED
+- **Severidad Máxima**: HIGH
+- **Total de Hallazgos**: 1
 
-## Findings Detail
+## Detalle de Hallazgos
 
-| Line | Rule Violated | Severity | Technical Explanation | Recommended Remediation |
+| Línea | Regla Violada | Severidad | Explicación Técnica | Remediación Recomendada |
 | :--- | :--- | :--- | :--- | :--- |
-| Line 3 | R10: Non-SARGable Filter | HIGH | Function `LOWER(FCEMAIL)` wraps an indexed column in the filter predicate. This prevents B-Tree index scans and forces a full table scan. | Remove scalar function from column side, or use a functional/expression index: `WHERE FCEMAIL = 'admin@company.com'`. |
+| Línea 3 | R10: Filtro No SARGable | HIGH | La función `LOWER(FCCORREO)` envuelve una columna indexada en el predicado del filtro. Esto previene el escaneo por índice B-Tree y fuerza un escaneo completo de la tabla. | Remover la función escalar del lado de la columna o utilizar un índice funcional/expresión: `WHERE FCCORREO = 'admin@empresa.com'`. |
 
-## Context Requests / UNKNOWN Declarations
-- None.
+## Solicitudes de Contexto / Declaraciones UNKNOWN
+- Ninguna.
 ```
 
 ## Pass / Fail
 PASS
 
-## Problem detected
-Regex-only evaluation passed the query because `WHERE` and `LIMIT` were present. Semantic AST/intent evaluation was required to detect scalar function wrapping.
+## Problem detected (Problema Detectado)
+La evaluación basada únicamente en regex aprobaba la consulta porque `WHERE` y `LIMIT` estaban presentes. Se requirió evaluación semántica/AST para detectar el envoltorio por función escalar.
 
-## Modification made to the skill
-Refined rule `R10` in `SKILL.md` and `rules/performance.md` to explicitly parse function calls wrapping predicate identifiers on the LHS of `WHERE` operators.
+## Modification made to the skill (Modificación Realizada a la Skill)
+Se refinó la regla `R10` en `SKILL.md` y `rules/performance.md` para parsear explícitamente llamadas a funciones escalares que envuelven identificadores en el lado izquierdo (`LHS`) de los operadores del `WHERE`.
