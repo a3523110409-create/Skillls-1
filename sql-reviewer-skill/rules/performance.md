@@ -1,132 +1,132 @@
-# Performance Rules (`rules/performance.md`)
+# Reglas de Rendimiento (`rules/performance.md`)
 
-This module defines rules designed to eliminate database bottlenecks, full-table scans, memory exhaustion, and sub-optimal query execution plans.
-
----
-
-## PERF-R01: Unbounded Projection (`SELECT *`)
-
-### Rule Definition
-`IF` statement is `SELECT` `AND` projects columns using wildcard character `*` or `table_alias.*`, `THEN` flag as **HIGH** severity violation.
-
-> **Justification:** `SELECT *` transfers unneeded columns over the network, increases memory buffer consumption on database and application servers, prevents index-only scan optimizations (covering indexes), and risks breaking application layers when schema migrations add or reorder columns.
-
-### Code Examples
-
-#### Incorrect (FAIL)
-```sql
-SELECT * FROM TA_ORDERS WHERE FDORDER_DATE >= '2026-01-01';
-```
-
-#### Correct (PASS)
-```sql
-SELECT FNORDER_ID, FNUSER_ID, FNTOTAL_AMOUNT, FDORDER_DATE 
-FROM TA_ORDERS 
-WHERE FDORDER_DATE >= '2026-01-01';
-```
+Este módulo define reglas diseñadas para eliminar cuellos de botella en la base de datos, escaneos completos de tablas (Full Table Scans), agotamiento de memoria y planes de ejecución subóptimos.
 
 ---
 
-## PERF-R06: Mass Query Pagination Guard (`LIMIT` Enforcement)
+## PERF-R01: Proyección Incondicional (`SELECT *`)
 
-### Rule Definition
-`IF` statement is `SELECT` targeting transactional tables without a `LIMIT` / `TOP` / `FETCH FIRST` clause `OR` contains a cosmetic limit (`LIMIT >= 1000000`), `THEN` flag as **HIGH** severity (`CRITICAL` if `LIMIT >= 1000000000`).
+### Definición de la Regla
+`IF` la sentencia es `SELECT` `AND` proyecta columnas utilizando el comodín `*` o `alias_tabla.*`, `THEN` marcar como violación de severidad **HIGH**.
 
-> **Justification:** Unbounded queries or cosmetic high limits (e.g. `LIMIT 1000000000`) cause massive result sets to be fetched into application memory, leading to heap exhaustion (OOM), high CPU locks, and disk paging on the database instance.
+> **Justification:** `SELECT *` transfiere columnas innecesarias a través de la red, aumenta el consumo de memoria en la base de datos y servidores de aplicación, previene optimizaciones de escaneo de índice cubierto (covering index) y corre el riesgo de romper capas de aplicación cuando las migraciones agregan o reordenan columnas.
 
-### Code Examples
+### Ejemplos de Código
 
-#### Incorrect (FAIL)
+#### Incorrecto (FAIL)
 ```sql
--- Missing LIMIT clause
-SELECT FNUSER_ID, FCEMAIL FROM TA_USERS ORDER BY FDCREATED_AT DESC;
-
--- Cosmetic LIMIT evasion
-SELECT FNUSER_ID, FCEMAIL FROM TA_USERS LIMIT 1000000000;
+SELECT * FROM TA_ORDENES WHERE FDFECHA_ORDEN >= '2026-01-01';
 ```
 
-#### Correct (PASS)
+#### Correcto (PASS)
 ```sql
-SELECT FNUSER_ID, FCEMAIL FROM TA_USERS ORDER BY FDCREATED_AT DESC LIMIT 100;
+SELECT FNORDEN_ID, FNUSUARIO_ID, FNMONTO_TOTAL, FDFECHA_ORDEN 
+FROM TA_ORDENES 
+WHERE FDFECHA_ORDEN >= '2026-01-01';
 ```
 
 ---
 
-## PERF-R09: Missing Index Coverage on Join and Filter Predicates
+## PERF-R06: Protección de Paginación en Consultas Masivas (Uso de `LIMIT`)
 
-### Rule Definition
-`IF` statement joins tables or filters via `WHERE` / `GROUP BY` on columns without supporting B-Tree / Hash indexes verified in schema metadata, `THEN` flag as **HIGH** severity (if missing index is confirmed) or **INFO** / `UNKNOWN` (if schema metadata is absent).
+### Definición de la Regla
+`IF` la sentencia es `SELECT` sobre tablas transaccionales sin cláusula `LIMIT` / `TOP` / `FETCH FIRST` `OR` contiene un límite cosmético (`LIMIT >= 1000000`), `THEN` marcar como violación de severidad **HIGH** (`CRITICAL` si `LIMIT >= 1000000000`).
 
-> **Justification:** Querying unindexed columns forces the query optimizer to perform a Sequential Full Table Scan ($O(N)$), causing severe Disk I/O bottlenecks and elevated table locking on concurrent workloads.
+> **Justificación:** Consultas sin límite o con límites cosméticos excesivos (ej. `LIMIT 1000000000`) provocan que conjuntos masivos de datos se carguen en la memoria de la aplicación, ocasionando errores OutOfMemory (OOM), bloqueos de CPU y consumo excesivo de I/O en la base de datos.
 
-### Code Examples
+### Ejemplos de Código
 
-#### Incorrect (FAIL)
+#### Incorrecto (FAIL)
 ```sql
--- Unindexed search predicate (assuming FCEMAIL lacks an index)
-SELECT FNUSER_ID, FCNAME FROM TA_USERS WHERE FCEMAIL = 'user@example.com';
+-- Cláusula LIMIT ausente
+SELECT FNUSUARIO_ID, FCCORREO FROM TA_USUARIOS ORDER BY FDFECHA_CREACION DESC;
+
+-- Evasión por LIMIT cosmético
+SELECT FNUSUARIO_ID, FCCORREO FROM TA_USUARIOS LIMIT 1000000000;
 ```
 
-#### Correct (PASS)
+#### Correcto (PASS)
 ```sql
--- Predicate on indexed Primary Key / Indexed Column
-SELECT FNUSER_ID, FCNAME FROM TA_USERS WHERE FNUSER_ID = 502;
-```
-
----
-
-## PERF-R10: Non-SARGable Predicates and Correlated Subqueries
-
-### Rule Definition
-`IF` `WHERE` predicate wraps an indexed column in a scalar function (e.g., `YEAR()`, `LOWER()`, `SUBSTRING()`, arithmetic operations) `OR` `SELECT` projection uses correlated subqueries that evaluate per row, `THEN` flag as **HIGH** severity violation.
-
-> **Justification:** Wrapping columns in scalar functions renders the predicate non-SARGable (Search Argument Able), preventing the database optimizer from walking the index tree and forcing a full scan of all rows. Correlated subqueries introduce $O(N)$ complexity by re-executing the subquery for every outer row.
-
-### Code Examples
-
-#### Incorrect (FAIL)
-```sql
--- Function wrapping indexed column (Non-SARGable)
-SELECT FNORDER_ID FROM TA_ORDERS WHERE YEAR(FDORDER_DATE) = 2026;
-
--- Correlated subquery in SELECT projection
-SELECT u.FNUSER_ID, 
-       (SELECT COUNT(*) FROM TA_ORDERS o WHERE o.FNUSER_ID = u.FNUSER_ID) AS total_orders
-FROM TA_USERS u;
-```
-
-#### Correct (PASS)
-```sql
--- Range filter retaining raw column (SARGable)
-SELECT FNORDER_ID FROM TA_ORDERS 
-WHERE FDORDER_DATE >= '2026-01-01' AND FDORDER_DATE < '2027-01-01';
-
--- Explicit JOIN aggregation
-SELECT u.FNUSER_ID, COUNT(o.FNORDER_ID) AS total_orders
-FROM TA_USERS u
-LEFT JOIN TA_ORDERS o ON u.FNUSER_ID = o.FNUSER_ID
-GROUP BY u.FNUSER_ID;
+SELECT FNUSUARIO_ID, FCCORREO FROM TA_USUARIOS ORDER BY FDFECHA_CREACION DESC LIMIT 100;
 ```
 
 ---
 
-## PERF-R12: [REGLA PROPIA] Implicit Data Type Coercion in Predicates
+## PERF-R09: Cobertura Faltante de Índices en Predicados de Join y Filtro
 
-### Rule Definition
-`IF` join predicate or `WHERE` clause compares a column against a literal or column of a mismatched data type (e.g., string column compared to integer literal `FCCODE = 123` or numeric column compared to string `'500'`), `THEN` flag as **HIGH** severity violation.
+### Definición de la Regla
+`IF` la sentencia une tablas o filtra mediante `WHERE` / `GROUP BY` en columnas sin índices B-Tree o Hash confirmados en los metadatos del esquema, `THEN` marcar como severidad **HIGH** (si se confirma la falta de índice) o **INFO** / `UNKNOWN` (si faltan metadatos del esquema).
 
-> **Justification:** When data types mismatch, SQL engines dynamically cast column data row-by-row during execution. This dynamic type coercion neutralizes existing index trees and consumes substantial CPU cycles.
+> **Justificación:** Consultar columnas no indexadas obliga al optimizador a realizar un escaneo secuencial completo de la tabla ($O(N)$), causando cuellos de botella severos en I/O de disco y bloqueos en cargas concurrentes.
 
-### Code Examples
+### Ejemplos de Código
 
-#### Incorrect (FAIL)
+#### Incorrecto (FAIL)
 ```sql
--- FCACCOUNT_NUMBER is VARCHAR(50), but filtered with Integer literal
-SELECT FNUSER_ID FROM TA_ACCOUNTS WHERE FCACCOUNT_NUMBER = 987654321;
+-- Predicado de búsqueda no indexado (asumiendo que FCCORREO no tiene índice)
+SELECT FNUSUARIO_ID, FCNOMBRE FROM TA_USUARIOS WHERE FCCORREO = 'usuario@ejemplo.com';
 ```
 
-#### Correct (PASS)
+#### Correcto (PASS)
 ```sql
--- Filtered with matching string literal type
-SELECT FNUSER_ID FROM TA_ACCOUNTS WHERE FCACCOUNT_NUMBER = '987654321';
+-- Predicado en Clave Primaria / Columna Indexada
+SELECT FNUSUARIO_ID, FCNOMBRE FROM TA_USUARIOS WHERE FNUSUARIO_ID = 502;
+```
+
+---
+
+## PERF-R10: Predicados No SARGables y Subconsultas Correlacionadas
+
+### Definición de la Regla
+`IF` el predicado `WHERE` envuelve una columna indexada en una función escalar (ej. `YEAR()`, `LOWER()`, `SUBSTRING()`, operaciones aritméticas) `OR` la proyección del `SELECT` utiliza subconsultas correlacionadas que se evalúan por cada fila, `THEN` marcar como violación de severidad **HIGH**.
+
+> **Justificación:** Envolver columnas en funciones escalares invalida los índices B-Tree (No SARGable), forzando un escaneo completo. Las subconsultas correlacionadas introducen una complejidad $O(N)$ al reejecutarse por cada fila de la consulta externa.
+
+### Ejemplos de Código
+
+#### Incorrecto (FAIL)
+```sql
+-- Función envolviendo columna indexada (No SARGable)
+SELECT FNORDEN_ID FROM TA_ORDENES WHERE YEAR(FDFECHA_ORDEN) = 2026;
+
+-- Subconsulta correlacionada en proyección SELECT
+SELECT u.FNUSUARIO_ID, 
+       (SELECT COUNT(*) FROM TA_ORDENES o WHERE o.FNUSUARIO_ID = u.FNUSUARIO_ID) AS total_ordenes
+FROM TA_USUARIOS u;
+```
+
+#### Correcto (PASS)
+```sql
+-- Filtro por rango conservando la columna pura (SARGable)
+SELECT FNORDEN_ID FROM TA_ORDENES 
+WHERE FDFECHA_ORDEN >= '2026-01-01' AND FDFECHA_ORDEN < '2027-01-01';
+
+-- Agregación mediante JOIN explícito
+SELECT u.FNUSUARIO_ID, COUNT(o.FNORDEN_ID) AS total_ordenes
+FROM TA_USUARIOS u
+LEFT JOIN TA_ORDENES o ON u.FNUSUARIO_ID = o.FNUSUARIO_ID
+GROUP BY u.FNUSUARIO_ID;
+```
+
+---
+
+## PERF-R12: [REGLA PROPIA] Coerción Implícita de Tipos de Datos en Predicados
+
+### Definición de la Regla
+`IF` un predicado de join o cláusula `WHERE` compara una columna contra un literal o columna de tipo de dato diferente (ej. columna de texto comparada con entero `FCCUENTA_NUMERO = 987654321` o columna numérica comparada con texto `'500'`), `THEN` marcar como violación de severidad **HIGH**.
+
+> **Justificación:** Cuando los tipos de datos no coinciden, el motor SQL convierte los datos de cada fila dinámicamente durante la ejecución. Esta conversión implícita invalida los índices existentes y consume ciclos de CPU considerables.
+
+### Ejemplos de Código
+
+#### Incorrecto (FAIL)
+```sql
+-- FCCUENTA_NUMERO es VARCHAR(50), pero se filtra con literal entero
+SELECT FNUSUARIO_ID FROM TA_CUENTAS WHERE FCCUENTA_NUMERO = 987654321;
+```
+
+#### Correcto (PASS)
+```sql
+-- Filtrado con tipo de literal texto coincidente
+SELECT FNUSUARIO_ID FROM TA_CUENTAS WHERE FCCUENTA_NUMERO = '987654321';
 ```

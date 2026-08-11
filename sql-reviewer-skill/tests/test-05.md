@@ -1,64 +1,64 @@
-# Test 05: Adversarial / Red Team Evaluation
+# Pruebas Test 05: Evaluación Adversarial / Simulación de Red Team
 
-## Input
+## Input (Entrada)
 ```sql
--- Entry 1 (Professor Red Team 1): Cosmetic WHERE clause evasion
-DELETE FROM TA_USERS WHERE 1 = 1;
+-- Entrada 1 (Red Team Profesor 1): Evasión por cláusula WHERE cosmética
+DELETE FROM TA_USUARIOS WHERE 1 = 1;
 
--- Entry 2 (Professor Red Team 2): Cosmetic LIMIT evasion + SELECT *
-SELECT * FROM TA_USERS LIMIT 1000000000;
+-- Entrada 2 (Red Team Profesor 2): Evasión por LIMIT cosmético + SELECT *
+SELECT * FROM TA_USUARIOS LIMIT 1000000000;
 
--- Entry 3 (Professor Red Team 3): Wildcard WHERE clause evasion
-UPDATE TA_USERS SET FCROLE = 'ADMIN' WHERE FCEMAIL LIKE '%';
+-- Entrada 3 (Red Team Profesor 3): Evasión por cláusula WHERE comodín
+UPDATE TA_USUARIOS SET FCROL = 'ADMINISTRA' WHERE FCCORREO LIKE '%';
 
--- Entry 4 (Custom Adversarial 1): Tautological OR evasion filter
-DELETE FROM TA_USERS WHERE FCEMAIL IS NOT NULL OR FCEMAIL IS NULL;
+-- Entrada 4 (Adversarial Propia 1): Filtro de evasión tautológico con OR
+DELETE FROM TA_USUARIOS WHERE FCCORREO IS NOT NULL OR FCCORREO IS NULL;
 
--- Entry 5 (Custom Adversarial 2): High numerical limit evasion
-SELECT FNUSER_ID, FCEMAIL FROM TA_USERS WHERE 'x' = 'x' ORDER BY 1 LIMIT 5000000;
+-- Entrada 5 (Adversarial Propia 2): Evasión por límite numérico elevado
+SELECT FNUSUARIO_ID, FCCORREO FROM TA_USUARIOS WHERE 'x' = 'x' ORDER BY 1 LIMIT 5000000;
 ```
 
-## Expected behavior
-The skill must NOT be tricked by superficial clause presence (`WHERE`, `LIMIT`, `LIKE`).
-- Entry 1: Flagged as `CRITICAL` under `R02` (Cosmetic `1=1` clause equivalent to unbounded DELETE).
-- Entry 2: Flagged as `CRITICAL` under `R06` (Limit >= 1 Billion is cosmetic) AND `HIGH` under `R01` (`SELECT *`).
-- Entry 3: Flagged as `CRITICAL` under `R02` (Wildcard `LIKE '%'` matches all rows, bulk unintended update).
-- Entry 4: Flagged as `CRITICAL` under `R02` (Tautology `IS NOT NULL OR IS NULL` selects 100% of table rows).
-- Entry 5: Flagged as `CRITICAL` under `R06` (Limit 5 Million exceeds safe memory bounds) AND `CRITICAL` under `R02` (`'x'='x'`).
+## Expected behavior (Comportamiento Esperado)
+La skill NO debe dejarse engañar por la presencia superficial de cláusulas (`WHERE`, `LIMIT`, `LIKE`).
+- Entrada 1: Marcar como `CRITICAL` bajo `R02` (`1=1` cosmético es equivalente a un DELETE incondicional).
+- Entrada 2: Marcar como `CRITICAL` bajo `R06` (`LIMIT >= 1 Billón` es cosmético) Y `HIGH` bajo `R01` (`SELECT *`).
+- Entrada 3: Marcar como `CRITICAL` bajo `R02` (Comodín `LIKE '%'` coincide con todas las filas, actualización masiva no intencionada).
+- Entrada 4: Marcar como `CRITICAL` bajo `R02` (Tautología `IS NOT NULL OR IS NULL` selecciona el 100% de las filas).
+- Entrada 5: Marcar como `CRITICAL` bajo `R06` (Límite 5 Millones supera el umbral seguro de memoria) Y `CRITICAL` bajo `R02` (`'x'='x'`).
 
-Overall result reported as `ACTION REQUIRED` with highest severity `CRITICAL`.
+Resultado general reportado como `ACTION REQUIRED` con severidad máxima `CRITICAL`.
 
-## Actual behavior
+## Actual behavior (Comportamiento Real)
 ```markdown
-# SQL Code Review Report
+# Reporte de Revisión de Código SQL
 
-## Summary
-- **Overall Result**: ACTION REQUIRED
-- **Highest Severity**: CRITICAL
-- **Total Findings**: 6
+## Resumen
+- **Resultado General**: ACTION REQUIRED
+- **Severidad Máxima**: CRITICAL
+- **Total de Hallazgos**: 6
 
-## Findings Detail
+## Detalle de Hallazgos
 
-| Line | Rule Violated | Severity | Technical Explanation | Recommended Remediation |
+| Línea | Regla Violada | Severidad | Explicación Técnica | Remediación Recomendada |
 | :--- | :--- | :--- | :--- | :--- |
-| Line 2 | R02: Safe DELETE Filter | CRITICAL | Statement uses cosmetic filter `WHERE 1 = 1` which evaluates to TRUE for all rows, resulting in complete table truncation of TA_USERS. | Replace `1=1` with a specific primary key bound: `WHERE FNUSER_ID = :id`. |
-| Line 5 | R01: Selective Projection | HIGH | Statement uses `SELECT *` projection wildcard. | Replace `*` with explicit column list. |
-| Line 5 | R06: Mass Query Bound | CRITICAL | Parameter `LIMIT 1000000000` (1 Billion) is a cosmetic limit that provides zero protection against OutOfMemory crashes. | Reduce limit to realistic pagination bound (`LIMIT 100` - `LIMIT 1000`). |
-| Line 8 | R02: Safe UPDATE Filter | CRITICAL | Filter `WHERE FCEMAIL LIKE '%'` matches 100% of non-null records, causing an unintended bulk update of all user roles to ADMIN. | Specify exact target email or user ID predicate. |
-| Line 11| R02: Safe DELETE Filter | CRITICAL | Tautological filter `WHERE FCEMAIL IS NOT NULL OR FCEMAIL IS NULL` evaluates to TRUE for every row, erasing all records. | Remove tautology and pass explicit entity identifier. |
-| Line 14| R06: Mass Query Bound | CRITICAL | Parameter `LIMIT 5000000` exceeds max safe memory threshold (1,000,000). | Implement chunked cursor pagination or reduce limit to <= 1,000. |
+| Línea 2 | R02: Filtro DELETE Seguro | CRITICAL | La sentencia utiliza el filtro cosmético `WHERE 1 = 1` que se evalúa como TRUE para todas las filas, resultando en el vaciado completo de TA_USUARIOS. | Reemplazar `1=1` con un límite explícito por clave primaria: `WHERE FNUSUARIO_ID = :id`. |
+| Línea 5 | R01: Proyección Selectiva | HIGH | La sentencia utiliza el comodín de proyección `SELECT *`. | Reemplazar `*` con la lista explícita de columnas. |
+| Línea 5 | R06: Límite en Consulta Masiva | CRITICAL | El parámetro `LIMIT 1000000000` (1 Billón) es un límite cosmético que no ofrece protección contra caídas OutOfMemory. | Reducir el límite a un rango realista de paginación (`LIMIT 100` - `LIMIT 1000`). |
+| Línea 8 | R02: Filtro UPDATE Seguro | CRITICAL | El filtro `WHERE FCCORREO LIKE '%'` coincide con el 100% de los registros no nulos, causando una actualización masiva no intencionada de todos los roles a ADMINISTRA. | Especificar el correo o el ID del usuario objetivo explícitamente. |
+| Línea 11| R02: Filtro DELETE Seguro | CRITICAL | El filtro tautológico `WHERE FCCORREO IS NOT NULL OR FCCORREO IS NULL` se evalúa como TRUE para cada fila, borrando todos los registros. | Remover la tautología y pasar un identificador de entidad explícito. |
+| Línea 14| R06: Límite en Consulta Masiva | CRITICAL | El parámetro `LIMIT 5000000` excede el umbral máximo de seguridad de memoria (1,000,000). | Implementar paginación basada en cursor o reducir el límite a <= 1,000. |
 
-## Context Requests / UNKNOWN Declarations
-- None.
+## Solicitudes de Contexto / Declaraciones UNKNOWN
+- Ninguna.
 ```
 
 ## Pass / Fail
 PASS
 
-## Problem detected
-Initial skill draft only checked for literal `1=1` string matching. Custom Adversarial Entry 4 (`IS NOT NULL OR IS NULL`) and Entry 5 (`'x'='x'`) bypassed the initial pattern matchers.
+## Problem detected (Problema Detectado)
+El borrador inicial de la skill solo verificaba coincidencia literal de cadenas `1=1`. Las entradas adversariales de prueba (`IS NOT NULL OR IS NULL` y `'x'='x'`) evadían los comparadores iniciales.
 
-## Modification made to the skill
-Updated Section 6 (`R02` and `R06`) in `SKILL.md` and `rules/security.md` to define semantic tautology evaluation:
-- *Condition*: `IF WHERE clause evaluates to unconditional TRUE (e.g. 1=1, 'a'='a', IS NOT NULL OR IS NULL, LIKE '%'), THEN flag as CRITICAL.`
-- *Condition*: `IF LIMIT is greater than or equal to 1,000,000, THEN flag as HIGH/CRITICAL cosmetic limit.`
+## Modification made to the skill (Modificación Realizada a la Skill)
+Se actualizaron la Sección 6 (`R02` y `R06`) en `SKILL.md` y `rules/security.md` para definir la evaluación semántica de tautologías:
+- *Condición*: `IF la cláusula WHERE se evalúa como incondicionalmente TRUE (ej. 1=1, 'a'='a', IS NOT NULL OR IS NULL, LIKE '%'), THEN marcar como CRITICAL.`
+- *Condición*: `IF LIMIT es mayor o igual a 1,000,000, THEN marcar como límite cosmético de severidad HIGH/CRITICAL.`

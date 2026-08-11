@@ -1,29 +1,29 @@
 -- =============================================================================
--- EXAMPLES: EDGE-CASE AND ADVERSARIAL SQL STATEMENTS
--- These statements superficially appear to satisfy syntax rules (e.g. they contain
--- WHERE clauses or LIMIT parameters), but employ evasion techniques or semantic
--- flaws that degrade performance or compromise data security.
+-- EJEMPLOS: CASOS DE BORDE Y CONSULTAS ADVERSARIALES EN SQL
+-- Estas sentencias parecen cumplir superficialmente las reglas de sintaxis (ej. incluyen
+-- cláusulas WHERE o parámetros LIMIT), pero emplean técnicas de evasión o fallos semánticos
+-- que degradan el rendimiento o comprometen la seguridad de los datos.
 -- =============================================================================
 
--- Edge Case 1: Cosmetic WHERE clause evasion (Evaluates to TRUE for all rows)
--- Superficially contains a WHERE clause, but bypasses bounded modification.
-DELETE FROM TA_USERS WHERE 1 = 1;
+-- Caso de Borde 1: Evasión por cláusula WHERE cosmética (Se evalúa como TRUE para todas las filas)
+-- Contiene superficialmente un WHERE, pero evade la modificación acotada.
+DELETE FROM TA_USUARIOS WHERE 1 = 1;
 
--- Edge Case 2: Cosmetic LIMIT clause evasion (Astronomical limit parameter)
--- Superficially includes LIMIT, but 1 Billion limit provides zero OOM memory protection.
-SELECT FNUSER_ID, FCEMAIL FROM TA_USERS LIMIT 1000000000;
+-- Caso de Borde 2: Evasión por cláusula LIMIT cosmética (Parámetro de límite astronómico)
+-- Incluye superficialmente LIMIT, pero 1 Billón no ofrece ninguna protección de memoria OOM.
+SELECT FNUSUARIO_ID, FCCORREO FROM TA_USUARIOS LIMIT 1000000000;
 
--- Edge Case 3: Cosmetic Wildcard WHERE clause evasion
--- Superficially includes WHERE clause with LIKE, but '%' matches 100% of non-null records.
-UPDATE TA_USERS SET FCROLE = 'ADMIN' WHERE FCEMAIL LIKE '%';
+-- Caso de Borde 3: Evasión por filtro comodín cosmético
+-- Incluye superficialmente WHERE con LIKE, pero '%' coincide con el 100% de registros no nulos.
+UPDATE TA_USUARIOS SET FCROL = 'ADMINISTRA' WHERE FCCORREO LIKE '%';
 
--- Edge Case 4: Non-SARGable case-insensitive string search
--- Superficially valid query, but LOWER() function invalidates B-Tree index on FCEMAIL.
-SELECT FNUSER_ID, FCNAME FROM TA_USERS WHERE LOWER(FCEMAIL) = 'admin@company.com' LIMIT 10;
+-- Caso de Borde 4: Búsqueda insensible a mayúsculas No SARGable
+-- Consulta superficialmente válida, pero la función LOWER() invalida el índice B-Tree en FCCORREO.
+SELECT FNUSUARIO_ID, FCNOMBRE FROM TA_USUARIOS WHERE LOWER(FCCORREO) = 'admin@empresa.com' LIMIT 10;
 
--- Edge Case 5: Correlated N+1 Subquery in SELECT projection
--- Includes LIMIT 50, but subquery re-evaluates per row creating O(N) execution overhead.
-SELECT u.FNUSER_ID, u.FCUSER_NAME, 
-       (SELECT COUNT(*) FROM TA_ORDERS o WHERE o.FNUSER_ID = u.FNUSER_ID) AS total_orders
-FROM TA_USERS u
+-- Caso de Borde 5: Subconsulta correlacionada N+1 en proyección SELECT
+-- Incluye LIMIT 50, pero la subconsulta se reevalúa por cada fila creando sobrecarga O(N).
+SELECT u.FNUSUARIO_ID, u.FCNOMBRE_USUARIO, 
+       (SELECT COUNT(*) FROM TA_ORDENES o WHERE o.FNUSUARIO_ID = u.FNUSUARIO_ID) AS total_ordenes
+FROM TA_USUARIOS u
 LIMIT 50;

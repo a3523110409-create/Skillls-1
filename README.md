@@ -1,82 +1,82 @@
-# SQL Reviewer Skill (`sql-reviewer-skill`)
+# Skill Revisor de SQL (`sql-reviewer-skill`)
 
-A production-grade, deterministic AI skill for static analysis, security auditing, performance optimization, and conventions enforcement on SQL queries.
+Una skill determinista y de nivel producción para análisis estático, auditoría de seguridad, optimización de rendimiento y aplicación de convenciones en consultas SQL.
 
-Designed for seamless integration into code review pipelines, LLM agent toolsets, and automated CI/CD workflows.
+Diseñada para una integración fluida en pipelines de revisión de código, asistentes de IA y flujos de trabajo de CI/CD automatizados.
 
 ---
 
-## 📌 Repository Structure
+## 📌 Estructura del Repositorio
 
 ```
 sql-reviewer-skill/
-|-- SKILL.md                  # Main Skill Definition & Deterministic Execution Rules
-|-- README.md                 # Project Overview & Usage Documentation
-|-- rules/                    # Detailed Rule Definitions & Code Examples
-|   |-- security.md           # Security & SQL Injection Mitigation Rules (SEC-R02, R04, R11)
-|   |-- performance.md        # Latency, Indexing & Memory Optimization Rules (PERF-R01, R06, R09, R10, R12)
-|   `-- conventions.md        # Naming Standards & 3VL Logic Handling Rules (CONV-R05, R07, R08)
-|-- examples/                 # SQL Script Reference Files
-|   |-- valid.sql             # Compliant SQL queries (0 false positives)
-|   |-- invalid.sql           # Explicitly flawed queries violating R01-R12
-|   `-- edge-cases.sql        # Semantic evasion & edge-case queries
-`-- tests/                    # Evaluation & Verification Test Cases
-    |-- test-01.md            # Test 01: Happy Path Evaluation
-    |-- test-02.md            # Test 02: Evident Errors Evaluation
-    |-- test-03.md            # Test 03: Edge Case / Non-SARGable Evaluation
-    |-- test-04.md            # Test 04: Insufficient Information / UNKNOWN Context Evaluation
-    `-- test-05.md            # Test 05: Red Team / Adversarial Evasion Evaluation
+|-- SKILL.md                  # Definición Principal de la Skill y Reglas Deterministas
+|-- README.md                 # Visión General del Proyecto y Documentación de Uso
+|-- rules/                    # Definición Detallada de Reglas y Ejemplos de Código
+|   |-- security.md           # Reglas de Seguridad y Mitigación de Inyección SQL (SEC-R02, R04, R11)
+|   |-- performance.md        # Reglas de Optimización de Latencia, Índices y Memoria (PERF-R01, R06, R09, R10, R12)
+|   `-- conventions.md        # Reglas de Estándares de Nombres y Manejo de Lógica 3VL (CONV-R05, R07, R08)
+|-- examples/                 # Archivos de Referencia de Scripts SQL
+|   |-- valid.sql             # Consultas SQL válidas (0 falsos positivos)
+|   |-- invalid.sql           # Consultas con fallos explícitos violando R01-R12
+|   `-- edge-cases.sql        # Consultas de evasión cosmética y casos de borde
+`-- tests/                    # Suites de Prueba y Verificación
+    |-- test-01.md            # Test 01: Evaluación de Camino Feliz (Happy Path)
+    |-- test-02.md            # Test 02: Evaluación de Errores Evidentes
+    |-- test-03.md            # Test 03: Evaluación de Casos de Borde / No SARGables
+    |-- test-04.md            # Test 04: Evaluación de Información Insuficiente / Contexto UNKNOWN
+    `-- test-05.md            # Test 05: Evaluación de Red Team / Evasión Adversarial
 ```
 
 ---
 
-## 🚀 How to Use the Skill
+## 🚀 Cómo Usar la Skill
 
-### 1. In AI Agent Environments (Google Antigravity, Claude, ChatGPT, Cursor)
-Copy the [`SKILL.md`](SKILL.md) file into your project's `.gemini/skills/sql-reviewer/SKILL.md` or `.cursor/rules/` directory.
+### 1. En Entornos de Agentes de IA (Google Antigravity, Claude, ChatGPT, Cursor)
+Copia el archivo [`SKILL.md`](sql-reviewer-skill/SKILL.md) en el directorio `.gemini/skills/sql-reviewer/SKILL.md` o `.cursor/rules/` de tu proyecto.
 
-### 2. Manual Execution Prompt
-When prompting an AI assistant loaded with this skill:
+### 2. Prompt de Ejecución Manual
+Al realizar una consulta a un asistente de IA cargado con esta skill:
 ```text
-Review the following SQL statement using the sql-reviewer skill rules:
+Revisa la siguiente sentencia SQL utilizando las reglas de la skill sql-reviewer:
 
-[INSERT YOUR SQL QUERY HERE]
+[INSERTA TU CONSULTA SQL AQUÍ]
 ```
 
-### 3. CI/CD Pre-commit Hook Integration
-Invoke the deterministic procedure defined in `SKILL.md` to evaluate SQL files against rules `R01` to `R12` prior to merging pull requests.
+### 3. Integración en Pre-commit Hooks de CI/CD
+Invoca el procedimiento determinista definido en `SKILL.md` para evaluar archivos SQL contra las reglas `R01` a `R12` antes de fusionar los pull requests.
 
 ---
 
-## 🛡️ Custom Team Rules Summary (`[REGLA PROPIA]`)
+## 🛡️ Resumen de Reglas Propias del Equipo (`[REGLA PROPIA]`)
 
-In addition to the 10 mandatory SQL review points, this repository includes **2 custom enterprise rules**:
+Además de los 10 puntos obligatorios de revisión SQL, este repositorio incluye **2 reglas empresariales propias**:
 
-1. **R11: Foreign Key Cascade and Soft-Delete Referential Integrity (`[REGLA PROPIA]`)**
-   - **Trigger**: `IF` a query attempts a hard `DELETE` on a table with a soft-delete schema column (`is_deleted`, `fd_deleted_at`) `OR` executes un-cascaded foreign key constraint drops.
-   - **Severity**: `HIGH` / `CRITICAL`
-   - **Justification**: Prevents orphaned records in child tables and protects soft-deleted audit records from permanent deletion.
+1. **R11: Integridad Referencial en Cascade de FK y Borrado Lógico (`[REGLA PROPIA]`)**
+   - **Disparador**: `IF` una consulta intenta un `DELETE` físico en una tabla con columna de borrado lógico (`fdes_eliminado`, `fdeliminado_at`) `OR` ejecuta borrados de restricciones de clave foránea sin cascada.
+   - **Severidad**: `HIGH` / `CRITICAL`
+   - **Justificación**: Previene registros huérfanos en tablas hijas y protege los registros de auditoría de borrado lógico contra su eliminación permanente.
 
-2. **R12: Implicit Data Type Coercion in Predicates (`[REGLA PROPIA]`)**
-   - **Trigger**: `IF` a join predicate or `WHERE` clause compares mismatched data types (e.g. `VARCHAR_COL = 12345` or `INT_COL = '123'`).
-   - **Severity**: `HIGH`
-   - **Justification**: Dynamic type casting row-by-row neutralizes database indexes and consumes excessive CPU cycles.
+2. **R12: Coerción Implícita de Tipos de Datos en Predicados (`[REGLA PROPIA]`)**
+   - **Disparador**: `IF` un predicado de join o cláusula `WHERE` compara tipos de datos no coincidentes (ej. `FCCUENTA_NUMERO = 12345` o `FNNUMERO_ID = '123'`).
+   - **Severidad**: `HIGH`
+   - **Justificación**: El casteo dinámico de tipos fila por fila invalida los índices de la base de datos y consume ciclos excesivos de CPU.
 
 ---
 
-## 🧪 Testing & Red Team Results Summary
+## 🧪 Resumen de Resultados de Pruebas y Red Team
 
-All **5 verification test suites** passed with a **100% success rate**:
+Las **5 suites de prueba de verificación** pasaron con una **tasa de éxito del 100%**:
 
-| Test Suite | Test Type | Status | Summary / Key Findings |
+| Suite de Prueba | Tipo de Prueba | Estado | Resumen / Hallazgos Clave |
 | :--- | :--- | :--- | :--- |
-| **Test 01** | Happy Path | `PASSED` | Verified that clean queries generate zero false positives. |
-| **Test 02** | Evident Errors | `PASSED` | Correctly flagged `DELETE` without `WHERE`, `SELECT *`, and `= NULL`. |
-| **Test 03** | Edge Case | `PASSED` | Detected non-SARGable `LOWER()` function wrapper on indexed filter column. |
-| **Test 04** | Insufficient Info | `PASSED` | Flagged missing schema context as `INFO / UNKNOWN` without inventing assumptions. |
-| **Test 05** | Red Team / Adversarial | `PASSED` | Successfully blocked 5 evasion attempts (`1=1`, `LIMIT 1000000000`, `LIKE '%'`, tautological `OR`, and 5M limit). |
+| **Test 01** | Camino Feliz (Happy Path) | `PASSED` | Se verificó que las consultas limpias generan cero falsos positivos. |
+| **Test 02** | Errores Evidentes | `PASSED` | Detectó correctamente `DELETE` sin `WHERE`, `SELECT *` y `= NULL`. |
+| **Test 03** | Casos de Borde | `PASSED` | Detectó la función no SARGable `LOWER()` envolviendo la columna indexada. |
+| **Test 04** | Información Insuficiente | `PASSED` | Marcó el contexto de esquema faltante como `INFO / UNKNOWN` sin alucinar suposiciones. |
+| **Test 05** | Red Team / Adversarial | `PASSED` | Bloqueó con éxito 5 intentos de evasión (`1=1`, `LIMIT 1000000000`, `LIKE '%'`, `OR` tautológico y límite de 5M). |
 
-### Key Improvements Made Following Red Team Attack:
-- Enhanced `R02` from literal `1=1` string matching to **semantic tautology evaluation** (`IS NOT NULL OR IS NULL`, `'x'='x'`).
-- Enhanced `R06` to classify limits $\ge 1,000,000$ as **cosmetic memory evasion hazards**.
-- Strengthened `Failure Handling` to ensure missing schema context triggers `INFO / UNKNOWN` status instead of hallucinating index status.
+### Mejoras Clave Realizadas Tras la Simulación de Red Team:
+- Se mejoró `R02` pasando de coincidencia de texto literal `1=1` a **evaluación semántica de tautologías** (`IS NOT NULL OR IS NULL`, `'x'='x'`).
+- Se mejoró `R06` para clasificar límites $\ge 1,000,000$ como **riesgos cosméticos de evasión de memoria**.
+- Se reforzó `Failure Handling` para asegurar que el contexto de esquema ausente active el estado `INFO / UNKNOWN` en lugar de alucinar el estado del índice.
